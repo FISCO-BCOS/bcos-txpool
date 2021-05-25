@@ -30,7 +30,6 @@ using namespace bcos::txpool;
 using namespace bcos::protocol;
 using namespace bcos::ledger;
 using namespace bcos::consensus;
-
 static unsigned const c_maxSendTransactions = 1000;
 
 void TransactionSync::start()
@@ -456,7 +455,7 @@ void TransactionSync::forwardTxsFromP2P(ConstTransactionsPtr _txs)
     auto consensusNodeList = m_config->consensusNodeList();
     auto connectedNodeList = m_config->connectedNodeList();
     auto expectedPeers = (consensusNodeList.size() * m_config->forwardPercent() + 99) / 100;
-    std::map<NodeIDPtr, HashListPtr> peerToForwardedTxs;
+    std::map<NodeIDPtr, HashListPtr, KeyCompare> peerToForwardedTxs;
     for (auto tx : *_txs)
     {
         auto selectedPeers = selectPeers(tx, connectedNodeList, consensusNodeList, expectedPeers);
