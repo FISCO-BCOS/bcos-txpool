@@ -19,7 +19,10 @@
  * @date 2021-05-10
  */
 #include "TxPool.h"
+#include "bcos-txpool/txpool/validator/TxValidator.h"
+#include "validator/LedgerNonceChecker.h"
 #include <bcos-framework/interfaces/protocol/CommonError.h>
+#include <bcos-framework/libtool/LedgerConfigFetcher.h>
 #include <tbb/parallel_for.h>
 using namespace bcos;
 using namespace bcos::txpool;
@@ -27,6 +30,8 @@ using namespace bcos::protocol;
 using namespace bcos::crypto;
 using namespace bcos::sync;
 using namespace bcos::consensus;
+using namespace bcos::tool;
+using namespace bcos::sealer;
 
 void TxPool::start()
 {
@@ -192,7 +197,7 @@ void TxPool::notifyObserverNodeList(
 }
 
 void TxPool::getTxsFromLocalLedger(HashListPtr _txsHash, HashListPtr _missedTxs,
-    std::function<void(Error::Ptr, bcos::protocol::TransactionsPtr)> _onBlockFilled)
+    std::function<void(Error::Ptr, TransactionsPtr)> _onBlockFilled)
 {
     // fetch from the local ledger
     auto self = std::weak_ptr<TxPool>(shared_from_this());
@@ -228,15 +233,14 @@ void TxPool::getTxsFromLocalLedger(HashListPtr _txsHash, HashListPtr _missedTxs,
 }
 
 // Note: the transaction must be all hit in local txpool
-void TxPool::asyncFillBlock(HashListPtr _txsHash,
-    std::function<void(Error::Ptr, bcos::protocol::TransactionsPtr)> _onBlockFilled)
+void TxPool::asyncFillBlock(
+    HashListPtr _txsHash, std::function<void(Error::Ptr, TransactionsPtr)> _onBlockFilled)
 {
     fillBlock(_txsHash, _onBlockFilled, true);
 }
 
 void TxPool::fillBlock(HashListPtr _txsHash,
-    std::function<void(Error::Ptr, bcos::protocol::TransactionsPtr)> _onBlockFilled,
-    bool _fetchFromLedger)
+    std::function<void(Error::Ptr, TransactionsPtr)> _onBlockFilled, bool _fetchFromLedger)
 {
     HashListPtr missedTxs = std::make_shared<HashList>();
     auto txs = m_txpoolStorage->fetchTxs(*missedTxs, *_txsHash);
@@ -247,6 +251,12 @@ void TxPool::fillBlock(HashListPtr _txsHash,
         if (_fetchFromLedger)
         {
             getTxsFromLocalLedger(_txsHash, missedTxs, _onBlockFilled);
+        }
+        else
+        {
+            _onBlockFilled(
+                std::make_shared<Error>(CommonError::TransactionsMissing, "TransactionsMissing"),
+                nullptr);
         }
         return;
     }
@@ -265,4 +275,82 @@ void TxPool::asyncMarkTxs(
         return;
     }
     _onRecvResponse(nullptr);
+}
+
+void TxPool::init(SealerInterface::Ptr _sealer)
+{
+    m_config->setSealer(_sealer);
+    auto ledgerConfigFetcher = std::make_shared<LedgerConfigFetcher>(m_config->ledger());
+    TXPOOL_LOG(INFO) << LOG_DESC("fetch LedgerConfig information");
+    ledgerConfigFetcher->fetchBlockNumberAndHash();
+    ledgerConfigFetcher->fetchConsensusNodeList();
+    ledgerConfigFetcher->fetchObserverNodeList();
+    ledgerConfigFetcher->waitFetchFinished();
+    TXPOOL_LOG(INFO) << LOG_DESC("fetch LedgerConfig success");
+
+    auto blockLimit = m_config->blockLimit();
+    auto ledgerConfig = ledgerConfigFetcher->ledgerConfig();
+    auto startNumber =
+        (ledgerConfig->blockNumber() > blockLimit ? (ledgerConfig->blockNumber() - blockLimit + 1) :
+                                                    0);
+    if (startNumber > 0)
+    {
+        auto toNumber = ledgerConfig->blockNumber();
+        auto fetchedSize = std::min(blockLimit, (toNumber - startNumber + 1));
+        TXPOOL_LOG(INFO) << LOG_DESC("fetch history nonces information")
+                         << LOG_KV("startNumber", startNumber)
+                         << LOG_KV("fetchedSize", fetchedSize);
+        ledgerConfigFetcher->fetchNonceList(startNumber, fetchedSize);
+    }
+    ledgerConfigFetcher->waitFetchFinished();
+    TXPOOL_LOG(INFO) << LOG_DESC("fetch history nonces success");
+
+    // create LedgerNonceChecker and set it into the validator
+    TXPOOL_LOG(INFO) << LOG_DESC("init txs validator");
+    auto ledgerNonceChecker = std::make_shared<LedgerNonceChecker>(
+        ledgerConfigFetcher->nonceList(), ledgerConfig->blockNumber(), blockLimit);
+
+    auto validator = std::dynamic_pointer_cast<TxValidator>(m_config->txValidator());
+    validator->setLedgerNonceChecker(ledgerNonceChecker);
+    TXPOOL_LOG(INFO) << LOG_DESC("init txs validator success");
+
+    // init syncConfig
+    TXPOOL_LOG(INFO) << LOG_DESC("init sync config");
+    auto txsSyncConfig = m_transactionSync->config();
+    txsSyncConfig->setConsensusNodeList(ledgerConfig->consensusNodeList());
+    txsSyncConfig->setObserverList(ledgerConfig->observerNodeList());
+    TXPOOL_LOG(INFO) << LOG_DESC("init sync config success");
+
+    auto self = std::weak_ptr<TxPool>(shared_from_this());
+    txsSyncConfig->frontService()->asyncGetNodeIDs(
+        [self](Error::Ptr _error, std::shared_ptr<const crypto::NodeIDs> _nodeIDs) {
+            if (_error != nullptr)
+            {
+                TXPOOL_LOG(WARNING)
+                    << LOG_DESC("asyncGetNodeIDs failed") << LOG_KV("code", _error->errorCode())
+                    << LOG_KV("msg", _error->errorMessage());
+                return;
+            }
+            try
+            {
+                if (!_nodeIDs || _nodeIDs->size() == 0)
+                {
+                    return;
+                }
+                auto txpool = self.lock();
+                if (!txpool)
+                {
+                    return;
+                }
+                NodeIDSet nodeIdSet(_nodeIDs->begin(), _nodeIDs->end());
+                txpool->m_transactionSync->config()->setConnectedNodeList(std::move(nodeIdSet));
+                TXPOOL_LOG(INFO) << LOG_DESC("asyncGetNodeIDs")
+                                 << LOG_KV("connectedSize", _nodeIDs->size());
+            }
+            catch (std::exception const& e)
+            {
+                TXPOOL_LOG(WARNING) << LOG_DESC("asyncGetNodeIDs exception")
+                                    << LOG_KV("error", boost::diagnostic_information(e));
+            }
+        });
 }

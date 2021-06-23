@@ -18,6 +18,7 @@
  * @author: yujiechen
  * @date 2021-05-10
  */
+#pragma once
 #include "bcos-txpool/TxPoolConfig.h"
 #include "bcos-txpool/sync/interfaces/TransactionSyncInterface.h"
 #include "bcos-txpool/txpool/interfaces/TxPoolStorageInterface.h"
@@ -84,6 +85,8 @@ public:
     {
         m_transactionSync = _transactionSync;
     }
+
+    virtual void init(bcos::sealer::SealerInterface::Ptr _sealer);
 
 protected:
     virtual bool checkExistsInGroup(bcos::protocol::TxSubmitCallback _txSubmitCallback);
