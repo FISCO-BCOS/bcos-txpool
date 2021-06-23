@@ -87,6 +87,13 @@ public:
 
 protected:
     virtual bool checkExistsInGroup(bcos::protocol::TxSubmitCallback _txSubmitCallback);
+    virtual void getTxsFromLocalLedger(bcos::crypto::HashListPtr _txsHash,
+        bcos::crypto::HashListPtr _missedTxs,
+        std::function<void(Error::Ptr, bcos::protocol::TransactionsPtr)> _onBlockFilled);
+
+    virtual void fillBlock(bcos::crypto::HashListPtr _txsHash,
+        std::function<void(Error::Ptr, bcos::protocol::TransactionsPtr)> _onBlockFilled,
+        bool _fetchFromLedger = true);
 
     template <typename T>
     void asyncSubmitTransaction(T _txData, bcos::protocol::TxSubmitCallback _txSubmitCallback)

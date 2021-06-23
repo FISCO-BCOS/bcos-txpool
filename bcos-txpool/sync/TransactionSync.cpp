@@ -188,6 +188,10 @@ void TransactionSync::requestMissedTxs(PublicPtr _generatedNodeID, HashListPtr _
             {
                 return;
             }
+            if (!_generatedNodeID)
+            {
+                return;
+            }
             // fetch missed txs from the given peer
             auto ledgerMissedTxs =
                 std::make_shared<HashList>(missedTxsSet->begin(), missedTxsSet->end());
