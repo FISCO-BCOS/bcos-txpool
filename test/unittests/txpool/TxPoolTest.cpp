@@ -408,7 +408,8 @@ void txPoolInitAndSubmitTransactionTest(bool _sm, CryptoSuite::Ptr _cryptoSuite)
     }
     bool verifyFinish = false;
     txpool->asyncSubmit(txData, [&](Error::Ptr _error, TransactionSubmitResult::Ptr _result) {
-        BOOST_CHECK(_error == nullptr);
+        BOOST_CHECK(_error->errorCode() == _result->status());
+        std::cout << "#### error info:" << _error->errorMessage() << std::endl;
         BOOST_CHECK(_result->txHash() == HashType());
         BOOST_CHECK(_result->status() == (uint32_t)(TransactionStatus::Malform));
         verifyFinish = true;

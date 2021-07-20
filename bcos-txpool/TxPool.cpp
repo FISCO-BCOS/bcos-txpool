@@ -441,7 +441,9 @@ void TxPool::initSendResponseHandler()
         catch (std::exception const& e)
         {
             TXPOOL_LOG(WARNING) << LOG_DESC("sendResonse exception")
-                                << LOG_KV("error", boost::diagnostic_information(e));
+                                << LOG_KV("error", boost::diagnostic_information(e))
+                                << LOG_KV("uuid", _id) << LOG_KV("moduleID", _moduleID)
+                                << LOG_KV("peer", _dstNode->shortHex());
         }
     };
 }

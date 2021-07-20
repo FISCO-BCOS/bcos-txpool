@@ -175,7 +175,9 @@ void MemoryStorage::notifyInvalidReceipt(
     }
     // notify txResult
     auto txResult = m_config->txResultFactory()->createTxSubmitResult(_txHash, (int32_t)_status);
-    _txSubmitCallback(nullptr, txResult);
+    std::stringstream errorMsg;
+    errorMsg << _status;
+    _txSubmitCallback(std::make_shared<Error>((int32_t)_status, errorMsg.str()), txResult);
     TXPOOL_LOG(WARNING) << LOG_DESC("notifyReceipt: reject invalid tx")
                         << LOG_KV("tx", _txHash.abridged()) << LOG_KV("exception", _status);
 }
@@ -187,6 +189,7 @@ TransactionStatus MemoryStorage::insert(Transaction::ConstPtr _tx)
     m_onReady();
     preCommitTransaction(_tx);
     notifyUnsealedTxsSize();
+    TXPOOL_LOG(INFO) << LOG_DESC("submit tx:") << _tx->hash().abridged();
     return TransactionStatus::None;
 }
 
@@ -260,6 +263,7 @@ Transaction::ConstPtr MemoryStorage::removeWithoutLock(bcos::crypto::HashType co
     {
         m_sealedTxsSize--;
     }
+    TXPOOL_LOG(INFO) << LOG_DESC("remove tx: ") << tx->hash().abridged();
     return tx;
 }
 
@@ -348,7 +352,8 @@ void MemoryStorage::batchRemove(BlockNumber _batchId, TransactionSubmitResults c
         }
     }
     TXPOOL_LOG(INFO) << LOG_DESC("batchRemove txs success")
-                     << LOG_KV("expectedSize", _txsResult.size()) << LOG_KV("succCount", succCount);
+                     << LOG_KV("expectedSize", _txsResult.size()) << LOG_KV("succCount", succCount)
+                     << LOG_KV("batchId", _batchId);
     // update the ledger nonce
     m_config->txValidator()->ledgerNonceChecker()->batchInsert(_batchId, nonceList);
     // update the txpool nonce
@@ -407,7 +412,7 @@ void MemoryStorage::batchFetchTxs(HashListPtr _txsList, HashListPtr _sysTxsList,
     for (auto it : m_txsTable)
     {
         auto tx = it.second;
-        // // Note: When inserting data into tbb::concurrent_unordered_map while traversing,
+        // Note: When inserting data into tbb::concurrent_unordered_map while traversing,
         // it.second will occasionally be a null pointer.
         if (!tx)
         {
@@ -451,6 +456,7 @@ void MemoryStorage::batchFetchTxs(HashListPtr _txsList, HashListPtr _sysTxsList,
             m_sealedTxsSize++;
         }
         tx->setSealed(true);
+        TXPOOL_LOG(INFO) << LOG_DESC("fetch ") << tx->hash().abridged();
         if ((_txsList->size() + _sysTxsList->size()) >= _txsLimit)
         {
             break;
@@ -562,6 +568,10 @@ void MemoryStorage::batchMarkTxs(bcos::crypto::HashList const& _txsHashList, boo
             continue;
         }
         auto tx = m_txsTable[txHash];
+        if (tx->sealed() == _sealFlag)
+        {
+            continue;
+        }
         if (_sealFlag && !tx->sealed())
         {
             m_sealedTxsSize++;
@@ -571,6 +581,7 @@ void MemoryStorage::batchMarkTxs(bcos::crypto::HashList const& _txsHashList, boo
             m_sealedTxsSize--;
         }
         tx->setSealed(_sealFlag);
+        TXPOOL_LOG(INFO) << LOG_DESC("mark ") << tx->hash().abridged() << ":" << _sealFlag;
     }
     notifyUnsealedTxsSize();
 }

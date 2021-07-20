@@ -178,6 +178,8 @@ void TransactionSync::onReceiveTxsRequest(
         TxsSyncPacketType::TxsResponsePacket, std::move(*txsData));
     auto packetData = txsResponse->encode();
     _sendResponse(ref(*packetData));
+    SYNC_LOG(INFO) << LOG_DESC("onReceiveTxsRequest: response txs")
+                   << LOG_KV("txsSize", txs->size());
 }
 
 void TransactionSync::requestMissedTxs(PublicPtr _generatedNodeID, HashListPtr _missedTxs,
@@ -471,7 +473,7 @@ bool TransactionSync::importDownloadedTxs(
             if (_enforceImport)
             {
                 SYNC_LOG(DEBUG) << LOG_BADGE("importDownloadedTxs: verify failed")
-                                << LOG_KV("tx", tx->hash().abridged());
+                                << LOG_KV("tx", tx->hash().abridged()) << LOG_KV("result", result);
                 return false;
             }
             SYNC_LOG(DEBUG) << LOG_BADGE("importDownloadedTxs")
