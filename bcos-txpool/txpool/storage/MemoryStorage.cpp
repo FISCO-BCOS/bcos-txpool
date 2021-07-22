@@ -30,6 +30,7 @@ MemoryStorage::MemoryStorage(TxPoolConfig::Ptr _config) : m_config(_config)
 {
     m_notifier = std::make_shared<ThreadPool>("txNotifier", m_config->notifierWorkerNum());
     m_worker = std::make_shared<ThreadPool>("txpoolWorker", 1);
+    m_blockNumberUpdatedTime = utcTime();
 }
 
 void MemoryStorage::stop()
@@ -98,6 +99,16 @@ TransactionStatus MemoryStorage::enforceSubmitTransaction(Transaction::Ptr _tx)
             {
                 m_sealedTxsSize++;
                 tx->setSealed(true);
+                tx->setBatchId(_tx->batchId());
+                tx->setBatchHash(_tx->batchHash());
+                TXPOOL_LOG(TRACE) << LOG_DESC("enforce to seal:") << tx->hash().abridged()
+                                  << LOG_KV("num", tx->batchId())
+                                  << LOG_KV("hash", tx->batchHash().abridged());
+                return TransactionStatus::None;
+            }
+            // sealed for the same proposal
+            if (tx->batchId() == _tx->batchId() && tx->batchHash() == _tx->batchHash())
+            {
                 return TransactionStatus::None;
             }
             // The transaction has already been sealed by another node
@@ -189,7 +200,10 @@ TransactionStatus MemoryStorage::insert(Transaction::ConstPtr _tx)
     m_onReady();
     preCommitTransaction(_tx);
     notifyUnsealedTxsSize();
-    TXPOOL_LOG(INFO) << LOG_DESC("submit tx:") << _tx->hash().abridged();
+#if FISCO_DEBUG
+    // TODO: remove this, now just for bug tracing
+    TXPOOL_LOG(DEBUG) << LOG_DESC("submit tx:") << _tx->hash().abridged();
+#endif
     return TransactionStatus::None;
 }
 
@@ -263,7 +277,12 @@ Transaction::ConstPtr MemoryStorage::removeWithoutLock(bcos::crypto::HashType co
     {
         m_sealedTxsSize--;
     }
-    TXPOOL_LOG(INFO) << LOG_DESC("remove tx: ") << tx->hash().abridged();
+#if FISCO_DEBUG
+    // TODO: remove this, now just for bug tracing
+    TXPOOL_LOG(DEBUG) << LOG_DESC("remove tx: ") << tx->hash().abridged()
+                      << LOG_KV("index", tx->batchId())
+                      << LOG_KV("hash", tx->batchHash().abridged());
+#endif
     return tx;
 }
 
@@ -330,8 +349,30 @@ void MemoryStorage::notifyTxResult(
     });
 }
 
+// TODO: remove this, now just for bug tracing
+void MemoryStorage::printPendingTxs()
+{
+    if (utcTime() - m_blockNumberUpdatedTime <= 1000 * 20)
+    {
+        return;
+    }
+    if (unSealedTxsSize() > 0 || size() == 0)
+    {
+        return;
+    }
+    TXPOOL_LOG(DEBUG) << LOG_DESC("printPendingTxs for some txs unhandle")
+                      << LOG_KV("pendingSize", size());
+    for (auto item : m_txsTable)
+    {
+        auto tx = item.second;
+        TXPOOL_LOG(DEBUG) << LOG_DESC("printPendingTxs") << LOG_KV("hash", tx->hash().abridged())
+                          << LOG_KV("id", tx->batchId())
+                          << LOG_KV("hash", tx->batchHash().abridged());
+    }
+}
 void MemoryStorage::batchRemove(BlockNumber _batchId, TransactionSubmitResults const& _txsResult)
 {
+    m_blockNumberUpdatedTime = utcTime();
     size_t succCount = 0;
     NonceListPtr nonceList = std::make_shared<NonceList>();
     {
@@ -456,7 +497,10 @@ void MemoryStorage::batchFetchTxs(HashListPtr _txsList, HashListPtr _sysTxsList,
             m_sealedTxsSize++;
         }
         tx->setSealed(true);
+#if FISCO_DEBUG
+        // TODO: remove this, now just for bug tracing
         TXPOOL_LOG(INFO) << LOG_DESC("fetch ") << tx->hash().abridged();
+#endif
         if ((_txsList->size() + _sysTxsList->size()) >= _txsLimit)
         {
             break;
@@ -556,7 +600,8 @@ HashListPtr MemoryStorage::filterUnknownTxs(HashList const& _txsHashList, NodeID
     return unknownTxsList;
 }
 
-void MemoryStorage::batchMarkTxs(bcos::crypto::HashList const& _txsHashList, bool _sealFlag)
+void MemoryStorage::batchMarkTxs(bcos::crypto::HashList const& _txsHashList,
+    bcos::protocol::BlockNumber _batchId, bcos::crypto::HashType const& _batchHash, bool _sealFlag)
 {
     ReadGuard l(x_txpoolMutex);
     for (auto txHash : _txsHashList)
@@ -568,7 +613,8 @@ void MemoryStorage::batchMarkTxs(bcos::crypto::HashList const& _txsHashList, boo
             continue;
         }
         auto tx = m_txsTable[txHash];
-        if (tx->sealed() == _sealFlag)
+        // the tx has already been re-sealed, can not enforce unseal
+        if (tx->batchHash() != HashType() && tx->batchHash() != _batchHash && !_sealFlag)
         {
             continue;
         }
@@ -581,7 +627,18 @@ void MemoryStorage::batchMarkTxs(bcos::crypto::HashList const& _txsHashList, boo
             m_sealedTxsSize--;
         }
         tx->setSealed(_sealFlag);
-        TXPOOL_LOG(INFO) << LOG_DESC("mark ") << tx->hash().abridged() << ":" << _sealFlag;
+        // set the block information for the transaction
+        if (_sealFlag)
+        {
+            tx->setBatchId(_batchId);
+            tx->setBatchHash(_batchHash);
+        }
+#if FISCO_DEBUG
+        // TODO: remove this, now just for bug tracing
+        TXPOOL_LOG(DEBUG) << LOG_DESC("mark ") << tx->hash().abridged() << ":" << _sealFlag
+                          << LOG_KV("index", tx->batchId())
+                          << LOG_KV("hash", tx->batchHash().abridged());
+#endif
     }
     notifyUnsealedTxsSize();
 }
@@ -591,9 +648,15 @@ void MemoryStorage::batchMarkAllTxs(bool _sealFlag)
     ReadGuard l(x_txpoolMutex);
     for (auto item : m_txsTable)
     {
-        if (item.second)
+        auto tx = item.second;
+        if (tx)
         {
-            item.second->setSealed(_sealFlag);
+            tx->setSealed(_sealFlag);
+        }
+        if (!_sealFlag)
+        {
+            tx->setBatchId(0);
+            tx->setBatchHash(HashType());
         }
     }
     if (_sealFlag)
@@ -639,7 +702,8 @@ void MemoryStorage::notifyUnsealedTxsSize(size_t _retryTime)
     auto unsealedTxsSize = unSealedTxsSizeWithoutLock();
     // TODO: remove this log
     TXPOOL_LOG(TRACE) << LOG_DESC("notifyUnsealedTxsSize")
-                      << LOG_KV("unsealedTxsSize", unsealedTxsSize);
+                      << LOG_KV("unsealedTxsSize", unsealedTxsSize)
+                      << LOG_KV("pendingTxs", m_txsTable.size());
     m_unsealedTxsNotifier(unsealedTxsSize, [_retryTime, this](Error::Ptr _error) {
         if (_error == nullptr)
         {
