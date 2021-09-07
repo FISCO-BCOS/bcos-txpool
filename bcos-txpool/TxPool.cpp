@@ -111,14 +111,18 @@ void TxPool::asyncVerifyBlock(PublicPtr _generatedNodeID, bytesConstRef const& _
     TXPOOL_LOG(INFO) << LOG_DESC("begin asyncVerifyBlock")
                      << LOG_KV(
                             "consNum", block->blockHeader() ? block->blockHeader()->number() : -1);
-
-    auto onVerifyFinishedWrapper = [_onVerifyFinished, block](Error::Ptr _error, bool _ret) {
+    auto startT = utcTime();
+    auto onVerifyFinishedWrapper = [_onVerifyFinished, block, startT](
+                                       Error::Ptr _error, bool _ret) {
         TXPOOL_LOG(INFO) << LOG_DESC("asyncVerifyBlock finished")
                          << LOG_KV("consNum",
                                 block->blockHeader() ? block->blockHeader()->number() : -1)
+                         << LOG_KV("hash", block->blockHeader() ?
+                                               block->blockHeader()->hash().abridged() :
+                                               "unknown")
                          << LOG_KV("code", _error ? _error->errorCode() : 0)
                          << LOG_KV("msg", _error ? _error->errorMessage() : "success")
-                         << LOG_KV("result", _ret);
+                         << LOG_KV("result", _ret) << LOG_KV("timecost", (utcTime() - startT));
         if (!_onVerifyFinished)
         {
             return;

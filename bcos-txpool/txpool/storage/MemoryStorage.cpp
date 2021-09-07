@@ -95,6 +95,10 @@ TransactionStatus MemoryStorage::enforceSubmitTransaction(Transaction::Ptr _tx)
         if (m_txsTable.count(txHash))
         {
             auto tx = m_txsTable[txHash];
+            if (!tx)
+            {
+                continue;
+            }
             if (!tx->sealed())
             {
                 m_sealedTxsSize++;
@@ -629,6 +633,10 @@ void MemoryStorage::batchMarkTxs(
             continue;
         }
         auto tx = m_txsTable[txHash];
+        if (!tx)
+        {
+            continue;
+        }
         // the tx has already been re-sealed, can not enforce unseal
         if (tx->batchHash() != HashType() && tx->batchHash() != _batchHash && !_sealFlag)
         {
@@ -665,10 +673,11 @@ void MemoryStorage::batchMarkAllTxs(bool _sealFlag)
     for (auto item : m_txsTable)
     {
         auto tx = item.second;
-        if (tx)
+        if (!tx)
         {
-            tx->setSealed(_sealFlag);
+            continue;
         }
+        tx->setSealed(_sealFlag);
         if (!_sealFlag)
         {
             tx->setBatchId(-1);
