@@ -505,9 +505,11 @@ void MemoryStorage::batchFetchTxs(Block::Ptr _txsList, Block::Ptr _sysTxsList, s
         {
             continue;
         }
-        auto txMetaData =
-            blockFactory->createTransactionMetaData(tx->hash(), std::string(tx->to()));
+        auto txMetaData = m_config->transactionMetaDataFactory().createTransactionMetaData();
+        // tx->hash(), std::string(tx->to()));
 
+        txMetaData->setHash(tx->hash());
+        txMetaData->setTo(std::string(tx->to()));
         txMetaData->setSubmitCallback(
             std::const_pointer_cast<bcos::protocol::Transaction>(tx)->takeSubmitCallback());
         if (tx->systemTx())

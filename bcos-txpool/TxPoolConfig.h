@@ -23,6 +23,7 @@
 #include "bcos-txpool/txpool/interfaces/NonceCheckerInterface.h"
 #include "bcos-txpool/txpool/interfaces/TxPoolStorageInterface.h"
 #include "bcos-txpool/txpool/interfaces/TxValidatorInterface.h"
+#include "interfaces/protocol/TransactionMetaData.h"
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
 #include <bcos-framework/interfaces/protocol/TransactionSubmitResultFactory.h>
@@ -36,14 +37,16 @@ public:
     using Ptr = std::shared_ptr<TxPoolConfig>;
     TxPoolConfig(TxValidatorInterface::Ptr _txValidator,
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory,
+        protocol::TransactionMetaDataFactory::Ptr transactionMetaDataFactory,
         bcos::protocol::BlockFactory::Ptr _blockFactory,
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger,
         NonceCheckerInterface::Ptr _txpoolNonceChecker, int64_t _blockLimit = 1000)
-      : m_txValidator(_txValidator),
-        m_txResultFactory(_txResultFactory),
-        m_blockFactory(_blockFactory),
-        m_ledger(_ledger),
-        m_txPoolNonceChecker(_txpoolNonceChecker),
+      : m_txValidator(std::move(_txValidator)),
+        m_txResultFactory(std::move(_txResultFactory)),
+        m_transactionMetaDataFactory(std::move(transactionMetaDataFactory)),
+        m_blockFactory(std::move(_blockFactory)),
+        m_ledger(std::move(_ledger)),
+        m_txPoolNonceChecker(std::move(_txpoolNonceChecker)),
         m_blockLimit(_blockLimit)
     {}
 
@@ -82,12 +85,17 @@ public:
     {
         return m_blockFactory->transactionFactory();
     }
+    protocol::TransactionMetaDataFactory& transactionMetaDataFactory()
+    {
+        return *m_transactionMetaDataFactory;
+    }
     std::shared_ptr<bcos::ledger::LedgerInterface> ledger() { return m_ledger; }
     int64_t blockLimit() const { return m_blockLimit; }
 
 private:
     TxValidatorInterface::Ptr m_txValidator;
     bcos::protocol::TransactionSubmitResultFactory::Ptr m_txResultFactory;
+    protocol::TransactionMetaDataFactory::Ptr m_transactionMetaDataFactory;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     std::shared_ptr<bcos::ledger::LedgerInterface> m_ledger;
     NonceCheckerInterface::Ptr m_txPoolNonceChecker;

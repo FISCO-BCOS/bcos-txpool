@@ -33,13 +33,15 @@ using namespace bcos::crypto;
 using namespace bcos::protocol;
 
 TxPoolFactory::TxPoolFactory(NodeIDPtr _nodeId, CryptoSuite::Ptr _cryptoSuite,
-    TransactionSubmitResultFactory::Ptr _txResultFactory, BlockFactory::Ptr _blockFactory,
-    bcos::front::FrontServiceInterface::Ptr _frontService,
+    TransactionSubmitResultFactory::Ptr _txResultFactory,
+    protocol::TransactionMetaDataFactory::Ptr transactionMetaDataFactory,
+    BlockFactory::Ptr _blockFactory, bcos::front::FrontServiceInterface::Ptr _frontService,
     bcos::ledger::LedgerInterface::Ptr _ledger, std::string const& _groupId,
     std::string const& _chainId, int64_t _blockLimit)
   : m_nodeId(_nodeId),
     m_cryptoSuite(_cryptoSuite),
     m_txResultFactory(_txResultFactory),
+    m_transactionMetaDataFactory(std::move(transactionMetaDataFactory)),
     m_blockFactory(_blockFactory),
     m_frontService(_frontService),
     m_ledger(_ledger),
@@ -56,8 +58,8 @@ TxPool::Ptr TxPoolFactory::createTxPool()
         std::make_shared<TxValidator>(txpoolNonceChecker, m_cryptoSuite, m_groupId, m_chainId);
 
     TXPOOL_LOG(INFO) << LOG_DESC("create transaction config");
-    auto txpoolConfig = std::make_shared<TxPoolConfig>(
-        validator, m_txResultFactory, m_blockFactory, m_ledger, txpoolNonceChecker, m_blockLimit);
+    auto txpoolConfig = std::make_shared<TxPoolConfig>(validator, m_txResultFactory,
+        m_transactionMetaDataFactory, m_blockFactory, m_ledger, txpoolNonceChecker, m_blockLimit);
     TXPOOL_LOG(INFO) << LOG_DESC("create transaction storage");
     auto txpoolStorage = std::make_shared<MemoryStorage>(txpoolConfig);
 

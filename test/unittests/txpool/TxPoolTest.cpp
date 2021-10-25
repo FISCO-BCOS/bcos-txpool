@@ -49,7 +49,12 @@ void testAsyncFillBlock(TxPoolFixture::Ptr _faker, TxPoolInterface::Ptr _txpool,
     for (size_t i = 0; i < 10; i++)
     {
         auto txHash = _cryptoSuite->hashImpl()->hash(std::to_string(i));
-        auto txMetaData = blockFactory->createTransactionMetaData(txHash, txHash.abridged());
+        // auto txMetaData = transactionMetaDataFactory.createTransactionMetaData(txHash,
+        // txHash.abridged());
+        auto txMetaData = _faker->transactionMetaDataFactory.createTransactionMetaData();
+        txMetaData->setHash(txHash);
+        txMetaData->setTo(txHash.abridged());
+
         txsHash->emplace_back(txHash);
         block->appendTransactionMetaData(txMetaData);
     }
@@ -89,8 +94,11 @@ void testAsyncFillBlock(TxPoolFixture::Ptr _faker, TxPoolInterface::Ptr _txpool,
     for (auto tx : *txs)
     {
         txsHash->emplace_back(tx->hash());
-        auto txMetaData =
-            blockFactory->createTransactionMetaData(tx->hash(), tx->hash().abridged());
+        // auto txMetaData =
+        //     blockFactory->createTransactionMetaData(tx->hash(), tx->hash().abridged());
+        auto txMetaData = _faker->transactionMetaDataFactory.createTransactionMetaData();
+        txMetaData->setHash(tx->hash());
+        txMetaData->setTo(tx->hash().abridged());
         block->appendTransactionMetaData(txMetaData);
     }
     finish = false;
@@ -126,7 +134,10 @@ void testAsyncFillBlock(TxPoolFixture::Ptr _faker, TxPoolInterface::Ptr _txpool,
     // case3: with some txs hitted
     auto txHash = _cryptoSuite->hashImpl()->hash("test");
     txsHash->emplace_back(txHash);
-    auto txMetaData = blockFactory->createTransactionMetaData(txHash, txHash.abridged());
+    // auto txMetaData = blockFactory->createTransactionMetaData(txHash, txHash.abridged());
+    auto txMetaData = _faker->transactionMetaDataFactory.createTransactionMetaData();
+    txMetaData->setHash(txHash);
+    txMetaData->setTo(txHash.abridged());
     block->appendTransactionMetaData(txMetaData);
 
     finish = false;
