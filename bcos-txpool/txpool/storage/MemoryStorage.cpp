@@ -20,6 +20,7 @@
  */
 #include "bcos-txpool/txpool/storage/MemoryStorage.h"
 #include <tbb/parallel_invoke.h>
+#include <memory>
 
 using namespace bcos;
 using namespace bcos::txpool;
@@ -326,6 +327,7 @@ void MemoryStorage::notifyTxResult(
     }
     // notify the transaction result to RPC
     auto self = std::weak_ptr<MemoryStorage>(shared_from_this());
+
     m_notifier->enqueue([self, _tx, _txSubmitResult, txSubmitCallback]() {
         try
         {
@@ -505,6 +507,9 @@ void MemoryStorage::batchFetchTxs(Block::Ptr _txsList, Block::Ptr _sysTxsList, s
         }
         auto txMetaData =
             blockFactory->createTransactionMetaData(tx->hash(), std::string(tx->to()));
+
+        txMetaData->setSubmitCallback(
+            std::const_pointer_cast<bcos::protocol::Transaction>(tx)->takeSubmitCallback());
         if (tx->systemTx())
         {
             _sysTxsList->appendTransactionMetaData(txMetaData);
