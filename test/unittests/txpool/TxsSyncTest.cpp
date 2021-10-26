@@ -194,7 +194,7 @@ void testTransactionSync(bool _onlyTxsStatus = false)
     for (auto const& txHash : *txsHash)
     {
         // auto txMetaData = blockFactory->createTransactionMetaData(txHash, txHash.abridged());
-        auto txMetaData = faker->transactionMetaDataFactory.createTransactionMetaData();
+        auto txMetaData = blockFactory->createTransactionMetaData();
         txMetaData->setHash(txHash);
         txMetaData->setTo(txHash.abridged());
 

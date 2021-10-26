@@ -25,7 +25,6 @@
 #include "bcos-txpool/txpool/validator/TxValidator.h"
 #include "libprotocol/protobuf/PBTransactionMetaData.h"
 #include <bcos-framework/interfaces/consensus/ConsensusNode.h>
-#include <bcos-framework/libprotocol/NativeTransactionMetaData.h>
 #include <bcos-framework/libprotocol/TransactionSubmitResultFactoryImpl.h>
 #include <bcos-framework/libprotocol/protobuf/PBBlockFactory.h>
 #include <bcos-framework/libprotocol/protobuf/PBBlockHeaderFactory.h>
@@ -98,10 +97,9 @@ public:
         m_ledger = std::make_shared<FakeLedger>(m_blockFactory, 20, 10, 10);
 
         m_frontService = std::make_shared<FakeFrontService>(_nodeId);
-        auto transactionMetaDataFactory = std::make_shared<PBTransactionMetaDataFactory>();
-        auto txPoolFactory = std::make_shared<TxPoolFactory>(_nodeId, _cryptoSuite,
-            m_txResultFactory, transactionMetaDataFactory, m_blockFactory, m_frontService, m_ledger,
-            m_groupId, m_chainId, m_blockLimit);
+        auto txPoolFactory =
+            std::make_shared<TxPoolFactory>(_nodeId, _cryptoSuite, m_txResultFactory,
+                m_blockFactory, m_frontService, m_ledger, m_groupId, m_chainId, m_blockLimit);
         m_txpool = txPoolFactory->createTxPool();
         m_sync = std::dynamic_pointer_cast<TransactionSync>(m_txpool->transactionSync());
         auto syncConfig = m_sync->config();
@@ -114,6 +112,7 @@ public:
     }
     virtual ~TxPoolFixture() {}
 
+    BlockFactory::Ptr blockFactory() { return m_blockFactory; }
     TxPool::Ptr txpool() { return m_txpool; }
     FakeLedger::Ptr ledger() { return m_ledger; }
     NodeIDPtr nodeID() { return m_nodeId; }
@@ -141,8 +140,6 @@ public:
         m_sync = std::make_shared<FakeTransactionSync>(syncConfig);
         m_txpool->setTransactionSync(m_sync);
     }
-
-    PBTransactionMetaDataFactory transactionMetaDataFactory;
 
 private:
     void updateConnectedNodeList()

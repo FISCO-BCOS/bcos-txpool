@@ -51,7 +51,7 @@ void testAsyncFillBlock(TxPoolFixture::Ptr _faker, TxPoolInterface::Ptr _txpool,
         auto txHash = _cryptoSuite->hashImpl()->hash(std::to_string(i));
         // auto txMetaData = transactionMetaDataFactory.createTransactionMetaData(txHash,
         // txHash.abridged());
-        auto txMetaData = _faker->transactionMetaDataFactory.createTransactionMetaData();
+        auto txMetaData = _faker->blockFactory()->createTransactionMetaData();
         txMetaData->setHash(txHash);
         txMetaData->setTo(txHash.abridged());
 
@@ -96,7 +96,7 @@ void testAsyncFillBlock(TxPoolFixture::Ptr _faker, TxPoolInterface::Ptr _txpool,
         txsHash->emplace_back(tx->hash());
         // auto txMetaData =
         //     blockFactory->createTransactionMetaData(tx->hash(), tx->hash().abridged());
-        auto txMetaData = _faker->transactionMetaDataFactory.createTransactionMetaData();
+        auto txMetaData = _faker->blockFactory()->createTransactionMetaData();
         txMetaData->setHash(tx->hash());
         txMetaData->setTo(tx->hash().abridged());
         block->appendTransactionMetaData(txMetaData);
@@ -135,7 +135,7 @@ void testAsyncFillBlock(TxPoolFixture::Ptr _faker, TxPoolInterface::Ptr _txpool,
     auto txHash = _cryptoSuite->hashImpl()->hash("test");
     txsHash->emplace_back(txHash);
     // auto txMetaData = blockFactory->createTransactionMetaData(txHash, txHash.abridged());
-    auto txMetaData = _faker->transactionMetaDataFactory.createTransactionMetaData();
+    auto txMetaData = _faker->blockFactory()->createTransactionMetaData();
     txMetaData->setHash(txHash);
     txMetaData->setTo(txHash.abridged());
     block->appendTransactionMetaData(txMetaData);
@@ -238,8 +238,9 @@ void testAsyncSealTxs(TxPoolFixture::Ptr _faker, TxPoolInterface::Ptr _txpool,
     auto txsResult = std::make_shared<TransactionSubmitResults>();
     for (auto txHash : *sealedTxs)
     {
-        auto txResult =
-            std::make_shared<TransactionSubmitResultImpl>(txHash, TransactionStatus::None);
+        auto txResult = std::make_shared<TransactionSubmitResultImpl>();
+        txResult->setTxHash(txHash);
+        txResult->setStatus((uint32_t)TransactionStatus::None);
         txsResult->emplace_back(txResult);
     }
     auto missedTxs = std::make_shared<HashList>();

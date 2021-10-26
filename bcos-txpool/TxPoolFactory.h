@@ -33,7 +33,6 @@ public:
     using Ptr = std::shared_ptr<TxPoolFactory>;
     TxPoolFactory(bcos::crypto::NodeIDPtr _nodeId, bcos::crypto::CryptoSuite::Ptr _cryptoSuite,
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory,
-        protocol::TransactionMetaDataFactory::Ptr transactionMetaDataFactory,
         bcos::protocol::BlockFactory::Ptr _blockFactory,
         bcos::front::FrontServiceInterface::Ptr _frontService,
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger, std::string const& _groupId,
@@ -46,7 +45,6 @@ private:
     bcos::crypto::NodeIDPtr m_nodeId;
     bcos::crypto::CryptoSuite::Ptr m_cryptoSuite;
     bcos::protocol::TransactionSubmitResultFactory::Ptr m_txResultFactory;
-    protocol::TransactionMetaDataFactory::Ptr m_transactionMetaDataFactory;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     bcos::front::FrontServiceInterface::Ptr m_frontService;
     std::shared_ptr<bcos::ledger::LedgerInterface> m_ledger;
