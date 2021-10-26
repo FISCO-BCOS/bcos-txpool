@@ -513,6 +513,7 @@ void MemoryStorage::batchFetchTxs(Block::Ptr _txsList, Block::Ptr _sysTxsList, s
 
         txMetaData->setHash(tx->hash());
         txMetaData->setTo(std::string(tx->to()));
+        txMetaData->setSource("From rpc");
 
         // take the submit callback because of success execute
         std::ignore =
