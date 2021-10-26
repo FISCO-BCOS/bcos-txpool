@@ -21,6 +21,7 @@
 #include "bcos-txpool/txpool/storage/MemoryStorage.h"
 #include <tbb/parallel_invoke.h>
 #include <memory>
+#include <tuple>
 
 using namespace bcos;
 using namespace bcos::txpool;
@@ -398,13 +399,11 @@ void MemoryStorage::batchRemove(BlockNumber _batchId, TransactionSubmitResults c
         {
             auto tx = removeSubmittedTxWithoutLock(txResult);
 
-            // FIXME: No nonce from scheduler! cache nonce by txpool
-            // if (!tx && txResult->nonce() != NonceType(-1))
-            // {
-            //     nonceList->emplace_back(txResult->nonce());
-            // }
-            // else if (tx)
-            if (tx)
+            if (!tx && txResult->nonce() != NonceType(-1))
+            {
+                nonceList->emplace_back(txResult->nonce());
+            }
+            else if (tx)
             {
                 succCount++;
                 nonceList->emplace_back(tx->nonce());
@@ -514,8 +513,11 @@ void MemoryStorage::batchFetchTxs(Block::Ptr _txsList, Block::Ptr _sysTxsList, s
 
         txMetaData->setHash(tx->hash());
         txMetaData->setTo(std::string(tx->to()));
-        txMetaData->setSubmitCallback(
-            std::const_pointer_cast<bcos::protocol::Transaction>(tx)->takeSubmitCallback());
+
+        // take the submit callback because of success execute
+        std::ignore =
+            std::const_pointer_cast<bcos::protocol::Transaction>(tx)->takeSubmitCallback();
+
         if (tx->systemTx())
         {
             _sysTxsList->appendTransactionMetaData(txMetaData);
