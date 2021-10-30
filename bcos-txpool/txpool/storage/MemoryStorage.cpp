@@ -191,7 +191,7 @@ void MemoryStorage::notifyInvalidReceipt(
     txResult->setTxHash(_txHash);
     txResult->setStatus((uint32_t)_status);
     std::stringstream errorMsg;
-    errorMsg << _status;
+    errorMsg << (int32_t)_status;
     _txSubmitCallback(std::make_shared<Error>((int32_t)_status, errorMsg.str()), txResult);
     TXPOOL_LOG(WARNING) << LOG_DESC("notifyReceipt: reject invalid tx")
                         << LOG_KV("tx", _txHash.abridged()) << LOG_KV("exception", _status);
