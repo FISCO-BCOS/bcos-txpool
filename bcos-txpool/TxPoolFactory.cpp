@@ -48,7 +48,7 @@ TxPoolFactory::TxPoolFactory(NodeIDPtr _nodeId, CryptoSuite::Ptr _cryptoSuite,
     m_blockLimit(_blockLimit)
 {}
 
-TxPool::Ptr TxPoolFactory::createTxPool()
+TxPool::Ptr TxPoolFactory::createTxPool(bool _enforceConnect)
 {
     TXPOOL_LOG(INFO) << LOG_DESC("create transaction validator");
     auto txpoolNonceChecker = std::make_shared<TxPoolNonceChecker>();
@@ -66,8 +66,8 @@ TxPool::Ptr TxPoolFactory::createTxPool()
     auto txsSyncConfig = std::make_shared<TransactionSyncConfig>(
         m_nodeId, m_frontService, txpoolStorage, syncMsgFactory, m_blockFactory, m_ledger);
     TXPOOL_LOG(INFO) << LOG_DESC("create sync engine");
-    auto txsSync = std::make_shared<TransactionSync>(txsSyncConfig);
+    auto txsSync = std::make_shared<TransactionSync>(txsSyncConfig, _enforceConnect);
 
     TXPOOL_LOG(INFO) << LOG_DESC("create txpool");
-    return std::make_shared<TxPool>(txpoolConfig, txpoolStorage, txsSync);
+    return std::make_shared<TxPool>(txpoolConfig, txpoolStorage, txsSync, _enforceConnect);
 }

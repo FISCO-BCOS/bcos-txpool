@@ -590,7 +590,7 @@ NodeIDListPtr TransactionSync::selectPeers(Transaction::ConstPtr _tx,
     {
         auto nodeId = consensusNode->nodeID();
         // check connection
-        if (!_connectedPeers.count(nodeId))
+        if (m_enforceConnect && !_connectedPeers.count(nodeId))
         {
             continue;
         }

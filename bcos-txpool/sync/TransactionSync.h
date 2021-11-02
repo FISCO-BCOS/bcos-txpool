@@ -36,12 +36,13 @@ class TransactionSync : public TransactionSyncInterface,
 {
 public:
     using Ptr = std::shared_ptr<TransactionSync>;
-    explicit TransactionSync(TransactionSyncConfig::Ptr _config)
+    explicit TransactionSync(TransactionSyncConfig::Ptr _config, bool _enforceConnect = true)
       : TransactionSyncInterface(_config),
         Worker("sync", 0),
         m_downloadTxsBuffer(std::make_shared<TxsSyncMsgList>()),
         m_worker(std::make_shared<ThreadPool>("sync", 1)),
-        m_txsRequester(std::make_shared<ThreadPool>("txsRequester", 1))
+        m_txsRequester(std::make_shared<ThreadPool>("txsRequester", 1)),
+        m_enforceConnect(_enforceConnect)
     {
         m_txsSubmitted = m_config->txpoolStorage()->onReady([&]() { this->noteNewTransactions(); });
     }
@@ -140,6 +141,7 @@ private:
     boost::condition_variable m_signalled;
     // mutex to access m_signalled
     boost::mutex x_signalled;
+    bool m_enforceConnect;
 };
 }  // namespace sync
 }  // namespace bcos

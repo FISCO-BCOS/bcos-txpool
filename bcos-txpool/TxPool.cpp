@@ -379,7 +379,10 @@ void TxPool::init()
     txsSyncConfig->setConsensusNodeList(ledgerConfig->consensusNodeList());
     txsSyncConfig->setObserverList(ledgerConfig->observerNodeList());
     TXPOOL_LOG(INFO) << LOG_DESC("init sync config success");
-
+    if (!m_enforceConnect)
+    {
+        return;
+    }
     auto self = std::weak_ptr<TxPool>(shared_from_this());
     txsSyncConfig->frontService()->asyncGetNodeIDs(
         [self](Error::Ptr _error, std::shared_ptr<const crypto::NodeIDs> _nodeIDs) {

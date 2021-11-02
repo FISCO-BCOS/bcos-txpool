@@ -33,8 +33,11 @@ class TxPool : public TxPoolInterface, public std::enable_shared_from_this<TxPoo
 public:
     using Ptr = std::shared_ptr<TxPool>;
     TxPool(TxPoolConfig::Ptr _config, TxPoolStorageInterface::Ptr _txpoolStorage,
-        bcos::sync::TransactionSyncInterface::Ptr _transactionSync)
-      : m_config(_config), m_txpoolStorage(_txpoolStorage), m_transactionSync(_transactionSync)
+        bcos::sync::TransactionSyncInterface::Ptr _transactionSync, bool _enforceConnect = true)
+      : m_config(_config),
+        m_txpoolStorage(_txpoolStorage),
+        m_transactionSync(_transactionSync),
+        m_enforceConnect(_enforceConnect)
     {
         m_worker = std::make_shared<ThreadPool>("submitter", _config->verifyWorkerNum());
         m_verifier = std::make_shared<ThreadPool>("verifier", 4);
@@ -170,6 +173,7 @@ private:
     ThreadPool::Ptr m_worker;
     ThreadPool::Ptr m_verifier;
     std::atomic_bool m_running = {false};
+    bool m_enforceConnect;
 };
 }  // namespace txpool
 }  // namespace bcos
