@@ -642,6 +642,7 @@ void MemoryStorage::batchMarkTxs(
     HashList const& _txsHashList, BlockNumber _batchId, HashType const& _batchHash, bool _sealFlag)
 {
     ReadGuard l(x_txpoolMutex);
+    ssize_t successCount = 0;
     for (auto txHash : _txsHashList)
     {
         if (!m_txsTable.count(txHash))
@@ -669,6 +670,7 @@ void MemoryStorage::batchMarkTxs(
             m_sealedTxsSize--;
         }
         tx->setSealed(_sealFlag);
+        successCount += 1;
         // set the block information for the transaction
         if (_sealFlag)
         {
@@ -682,7 +684,9 @@ void MemoryStorage::batchMarkTxs(
                           << LOG_KV("hash", tx->batchHash().abridged());
 #endif
     }
-    notifyUnsealedTxsSize();
+    TXPOOL_LOG(DEBUG) << LOG_DESC("batchMarkTxs ") << LOG_KV("txsSize", _txsHashList.size())
+                      << LOG_KV("batchId", _batchId) << LOG_KV("hash", _batchHash.abridged())
+                      << LOG_KV("flag", _sealFlag) << LOG_KV("succ", successCount);
 }
 
 void MemoryStorage::batchMarkAllTxs(bool _sealFlag)
