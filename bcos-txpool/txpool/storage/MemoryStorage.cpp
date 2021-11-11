@@ -343,14 +343,7 @@ void MemoryStorage::notifyTxResult(
             {
                 return;
             }
-            std::shared_ptr<Error> error = nullptr;
-            if (_txSubmitResult->status() != (int32_t)TransactionStatus::None)
-            {
-                std::stringstream errorMsg;
-                errorMsg << _txSubmitResult->status();
-                error = std::make_shared<Error>((int32_t)_txSubmitResult->status(), errorMsg.str());
-            }
-            txSubmitCallback(error, _txSubmitResult);
+            txSubmitCallback(nullptr, _txSubmitResult);
             // TODO: remove this log
             TXPOOL_LOG(TRACE) << LOG_DESC("notify submit result")
                               << LOG_KV("tx", _tx->hash().abridged());
